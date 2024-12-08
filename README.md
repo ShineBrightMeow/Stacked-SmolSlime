@@ -1,4 +1,7 @@
-# Tracker firmware for SlimeNRF
+# Tracker firmware for SlimeNRF Stacked configuration
+
+This repository adds support to stack the IMU on top of the NRF 52840 pro micro board using the gpio pins to power instead of VCC. Default configuration has 3.3v connect ot pin 17, gnd to pin 20, scl to pin 22, and sda to pin 24, int to pin 2, and ext-clk to pin 115. Sleep mode will only work when both pin 17 and VCC are connected unless you are using ICM45 where you would connect BOTH int and ext-clk. As such, sleep is disabled by default and you don't need to connect int or ext-clk for icm if you aren't going to use it. 
+
 
 ## Hardware
 - https://github.com/SlimeVR/SlimeVR-Tracker-nRF-PCB
