@@ -7,6 +7,7 @@ Default is set to non-icm modules, to enable ICM45 support, uncomment ext-clk
 
 ## Hardware
 https://www.aliexpress.us/item/3256807552571798.html
+
 https://store.kouno.xyz
 
 ## License
