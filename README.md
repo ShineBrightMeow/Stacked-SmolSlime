@@ -6,8 +6,8 @@ Default is set to non-icm modules, to enable ICM45 support, uncomment ext-clk
 
 
 ## Hardware
-- https://github.com/SlimeVR/SlimeVR-Tracker-nRF-PCB
-- https://oshwlab.com/sctanf/slimenrf3
+https://www.aliexpress.us/item/3256807552571798.html
+https://store.kouno.xyz
 
 ## License
 Unless otherwise specified, all code in this repository is dual-licensed under either:
