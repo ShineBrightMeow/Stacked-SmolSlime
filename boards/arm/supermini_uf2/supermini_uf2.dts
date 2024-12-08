@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Nordic Semiconductor ASA
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2
 
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
