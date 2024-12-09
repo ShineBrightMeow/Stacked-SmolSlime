@@ -324,8 +324,6 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 		for (int i = 0; i < 3; i++)
 			LOG_INF("%.5f %.5f %.5f %.5f", (double)magBAinv[0][i], (double)magBAinv[1][i], (double)magBAinv[2][i], (double)magBAinv[3][i]);
 	}
-	sensor_calibration_validate();
-
 	if (retained.fusion_id)
 		LOG_INF("Fusion data recovered");
 }
@@ -379,13 +377,20 @@ void sensor_calibrate_imu(void)
 
 	LOG_INF("Reading data");
 	sensor_calibration_clear();
-	sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
-	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
-	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+	if (sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias)) // This takes about 3s
+	{
+		LOG_INF("Motion detected");
+		accelBias[0] = NAN; // invalidate calibration
+	}
+	else
+	{
+		sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+		sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 #if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", (double)accelBias[0], (double)accelBias[1], (double)accelBias[2]);
+		LOG_INF("Accelerometer bias: %.5f %.5f %.5f", (double)accelBias[0], (double)accelBias[1], (double)accelBias[2]);
 #endif
-	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", (double)gyroBias[0], (double)gyroBias[1], (double)gyroBias[2]);
+		LOG_INF("Gyroscope bias: %.5f %.5f %.5f", (double)gyroBias[0], (double)gyroBias[1], (double)gyroBias[2]);
+	}
 	if (sensor_calibration_validate())
 	{
 		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
@@ -393,17 +398,7 @@ void sensor_calibrate_imu(void)
 	}
 
 	LOG_INF("Finished calibration");
-	if (sensor_fusion_init)
-	{ // clear fusion gyro offset
-		float g_off[3] = {0};
-		sensor_fusion->set_gyro_bias(g_off);
-		sensor_retained_write();
-	}
-	else
-	{ // TODO: always clearing the fusion?
-		retained.fusion_id = 0; // Invalidate retained fusion data
-		retained_update();
-	}
+	sensor_calibration_fusion_invalidate();
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 }
 
@@ -590,6 +585,8 @@ int main_imu_init(void)
 	// Calibrate IMU
 	if (isnan(accelBias[0]))
 		sensor_calibrate_imu();
+	else
+		sensor_calibration_validate();
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION 
 	// Calibrate 6-side
@@ -898,18 +895,21 @@ void main_imu_wakeup(void)
 
 // TODO: move to a calibration file
 // TODO: setup 6 sided calibration (bias and scale, and maybe gyro ZRO?), setup temp calibration (particulary for gyro ZRO)
-void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2)
+int sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2)
 {
-	float rawData[3];
+	float rawData[3], last_a[3];
+	sensor_imu->accel_read(dev_i2c, last_a);
 	for (int i = 0; i < 500; i++)
 	{
+		sensor_imu->accel_read(dev_i2c, rawData);
+		if (v_epsilon(rawData, last_a, 0.1))
+			return -1;
 #if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-		sensor_imu->accel_read(dev_i2c, &rawData[0]);
 		dest1[0] += rawData[0];
 		dest1[1] += rawData[1];
 		dest1[2] += rawData[2];
 #endif
-		sensor_imu->gyro_read(dev_i2c, &rawData[0]);
+		sensor_imu->gyro_read(dev_i2c, rawData);
 		dest2[0] += rawData[0];
 		dest2[1] += rawData[1];
 		dest2[2] += rawData[2];
@@ -919,16 +919,25 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	dest1[0] /= 500.0f;
 	dest1[1] /= 500.0f;
 	dest1[2] /= 500.0f;
-	if(dest1[0] > 0.9f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-	if(dest1[0] < -0.9f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-	if(dest1[1] > 0.9f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-	if(dest1[1] < -0.9f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-	if(dest1[2] > 0.9f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
-	if(dest1[2] < -0.9f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+	if (dest1[0] > 0.9f)
+		dest1[0] -= 1.0f; // Remove gravity from the x-axis accelerometer bias calculation
+	else if (dest1[0] < -0.9f)
+		dest1[0] += 1.0f; // Remove gravity from the x-axis accelerometer bias calculation
+	else if (dest1[1] > 0.9f)
+		dest1[1] -= 1.0f; // Remove gravity from the y-axis accelerometer bias calculation
+	else if (dest1[1] < -0.9f)
+		dest1[1] += 1.0f; // Remove gravity from the y-axis accelerometer bias calculation
+	else if (dest1[2] > 0.9f)
+		dest1[2] -= 1.0f; // Remove gravity from the z-axis accelerometer bias calculation
+	else if (dest1[2] < -0.9f)
+		dest1[2] += 1.0f; // Remove gravity from the z-axis accelerometer bias calculation
+	else
+		return -1;
 #endif
 	dest2[0] /= 500.0f;
 	dest2[1] /= 500.0f;
 	dest2[2] /= 500.0f;
+	return 0;
 }
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
