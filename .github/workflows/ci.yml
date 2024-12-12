@@ -1,3 +1,5 @@
+# Workflow by Shine Bright
+
 on:
   pull_request:
     branches:
@@ -14,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 💻 Aquire code
+      - name: 💻 Acquire code
         if: always()
         uses: actions/checkout@v2
       - name: Put commit hash/name in env variables
@@ -153,25 +155,6 @@ jobs:
           name: "Latest Firmware"
           body: |
             Successful build of the latest SlimeNRF Firmware.
-            Commit message:
-            Update Release
           files: |
             zephyr-workspace/SlimeVR-Tracker-nRF/build/zephyr/SlimeNRF_Tracker_SuperMini.uf2
-            zephyr-workspace/SlimeVR-Tracker-nRF/build_1/zephyr/SlimeNRF_Tracker_XIAO.uf2
-            zephyr-workspace/SlimeVR-Tracker-nRF/build_2/zephyr/SlimeNRF_Tracker_R3.uf2
-            zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_nrf52840dongle_nrf52840/zephyr/SlimeNRF_Receiver_Nordic_eByte_Dongle.hex
-            zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_supermini_uf2/zephyr/SlimeNRF_Receiver_SuperMini.uf2
-            zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_xiao_uf2/zephyr/SlimeNRF_Receiver_XIAO.uf2
           clear_attachments: true
-      # - name: 📂 Update Release
-      #   uses: test-room-7/action-update-file@v1.8.0
-      #   with:
-      #         file-path: |
-      #             zephyr-workspace/SlimeVR-Tracker-nRF/build/zephyr/SlimeNRF_Tracker_SuperMini.uf2
-      #             zephyr-workspace/SlimeVR-Tracker-nRF/build_1/zephyr/SlimeNRF_Tracker_XIAO.uf2
-      #             zephyr-workspace/SlimeVR-Tracker-nRF/build_2/zephyr/SlimeNRF_Tracker_R3.uf2
-      #             zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_nrf52840dongle_nrf52840/zephyr/SlimeNRF_Receiver_Nordic_eByte_Dongle.hex
-      #             zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_supermini_uf2/zephyr/SlimeNRF_Receiver_SuperMini.uf2
-      #             zephyr-workspace/SlimeVR-Tracker-nRF-Receiver/build_xiao_uf2/zephyr/SlimeNRF_Receiver_XIAO.uf2
-      #         commit-msg: Update Release
-      #         github-token: ${{ secrets.gh_token }}
